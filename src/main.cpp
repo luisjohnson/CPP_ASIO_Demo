@@ -1,33 +1,37 @@
 #include <iostream>
-#include <boost/thread.hpp>
-#include <boost/chrono.hpp>
+#include <memory>
+#include <thread>
+#include <vector>
+#include <algorithm>
 
-void Print1()
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+
+void WorkerThread(std::shared_ptr<boost::asio::io_service> service, int counter)
 {
-    for(int i=0; i<10; i++)
-    {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
-        std::cout << "[Print 1]: " << i << std::endl;
-    }
-
+    std::cout << counter << std::endl;
+    service->run();
+    std::cout << "End" << std::endl;
 }
 
-void Print2()
+int main()
 {
-    for(int i=0; i<10; i++)
-    {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds (500));
-        std::cout << "[Print 2]: " << i << std::endl;
+    std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
+    std::shared_ptr<boost::asio::io_service::work> worker(new boost::asio::io_service::work(*ioService));
+
+    std::cout << "Press ENTER to exit!" << std::endl;
+
+    std::vector<std::thread> threads;
+
+    for(int i=1; i<=5; i++){
+        threads.emplace_back(boost::bind(&WorkerThread, ioService, i));
     }
-}
 
-int main() {
+    std::cin.get();
+    ioService->stop();
 
-    boost::thread_group threads;
-    threads.create_thread(Print1);
-    threads.create_thread(Print2);
-
-    threads.join_all();
-
+    std::for_each(threads.begin(), threads.end(), [](std::thread &thread) {
+        thread.join();
+    });
     return 0;
 }
