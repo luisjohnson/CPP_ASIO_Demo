@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 
 std::mutex global_stream_lock;
 
@@ -21,12 +22,39 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int c
     global_stream_lock.unlock();
 }
 
+size_t  fac(size_t n)
+{
+    if(n <= 1)
+    {
+        return n;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    return n * fac(n - 1);
+}
+
+void CalculateFactorial(size_t n)
+{
+    global_stream_lock.lock();
+    std::cout << "Calculating " << n << "! factorial" << std::endl;
+    global_stream_lock.unlock();
+
+    size_t f = fac(n);
+
+    global_stream_lock.lock();
+    std::cout << n << "! = " << f << std::endl;
+    global_stream_lock.unlock();
+}
+
 int main()
 {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
     std::shared_ptr<boost::asio::io_service::work> worker(new boost::asio::io_service::work(*ioService));
 
-    std::cout << "Press ENTER to exit!" << std::endl;
+    global_stream_lock.lock();
+    std::cout << "The Program will exit once all the work has finished." << std::endl;
+    global_stream_lock.unlock();
 
     std::vector<std::thread> threads;
 
@@ -36,8 +64,11 @@ int main()
         });
     }
 
-    std::cin.get();
-    ioService->stop();
+    ioService->post(boost::bind(CalculateFactorial, 5));
+    ioService->post(boost::bind(CalculateFactorial, 6));
+    ioService->post(boost::bind(CalculateFactorial, 7));
+
+    worker.reset();
 
     std::for_each(threads.begin(), threads.end(), [](std::thread &thread) {
         thread.join();
