@@ -5,13 +5,20 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
+
+std::mutex global_stream_lock;
 
 void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int counter)
 {
+    global_stream_lock.lock();
     std::cout << counter << std::endl;
+    global_stream_lock.unlock();
+
     service->run();
+
+    global_stream_lock.lock();
     std::cout << "End" << std::endl;
+    global_stream_lock.unlock();
 }
 
 int main()
@@ -23,8 +30,10 @@ int main()
 
     std::vector<std::thread> threads;
 
-    for(int i=1; i<=5; i++){
-        threads.emplace_back([ioService, i] { return WorkerThread(ioService, i); });
+    for (int i = 1; i <= 5; i++) {
+        threads.emplace_back([ioService, i] {
+            return WorkerThread(ioService, i);
+        });
     }
 
     std::cin.get();
