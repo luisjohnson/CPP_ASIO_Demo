@@ -26,9 +26,6 @@ void PrintNumber(int number)
     std::cout << "Number :" << number << std::endl;
 }
 
-
-
-
 int main()
 {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
@@ -47,14 +44,17 @@ int main()
         });
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ioService->post(strand.wrap([] { return PrintNumber(1); }));
+    ioService->post(strand.wrap([] { return PrintNumber(2); }));
 
-    strand.post([]{return PrintNumber(1);});
-    strand.post([]{return PrintNumber(2);});
-    strand.post([]{return PrintNumber(3);});
-    strand.post([]{return PrintNumber(4);});
-    strand.post([]{return PrintNumber(5);});
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ioService->post(strand.wrap([] { return PrintNumber(3); }));
+    ioService->post(strand.wrap([] { return PrintNumber(4); }));
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ioService->post(strand.wrap([] { return PrintNumber(5); }));
+    ioService->post(strand.wrap([] { return PrintNumber(6); }));
 
     worker.reset();
 
