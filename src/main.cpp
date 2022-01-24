@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
 
 std::mutex global_stream_lock;
 
@@ -64,9 +63,9 @@ int main()
         });
     }
 
-    ioService->post(boost::bind(CalculateFactorial, 5));
-    ioService->post(boost::bind(CalculateFactorial, 6));
-    ioService->post(boost::bind(CalculateFactorial, 7));
+    ioService->post([] { return CalculateFactorial(5); });
+    ioService->post([] { return CalculateFactorial(6); });
+    ioService->post([] { return CalculateFactorial(7); });
 
     worker.reset();
 
