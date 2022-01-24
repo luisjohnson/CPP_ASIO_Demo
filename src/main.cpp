@@ -7,7 +7,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 
-void WorkerThread(std::shared_ptr<boost::asio::io_service> service, int counter)
+void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int counter)
 {
     std::cout << counter << std::endl;
     service->run();
@@ -24,7 +24,7 @@ int main()
     std::vector<std::thread> threads;
 
     for(int i=1; i<=5; i++){
-        threads.emplace_back(boost::bind(&WorkerThread, ioService, i));
+        threads.emplace_back([ioService, i] { return WorkerThread(ioService, i); });
     }
 
     std::cin.get();
