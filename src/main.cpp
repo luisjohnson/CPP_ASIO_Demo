@@ -33,6 +33,7 @@ int main()
 {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
     std::shared_ptr<boost::asio::io_service::work> worker(new boost::asio::io_service::work(*ioService));
+    boost::asio::io_service::strand strand(*ioService);
 
     global_stream_lock.lock();
     std::cout << "The Program will exit once all the work has finished." << std::endl;
@@ -48,11 +49,11 @@ int main()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    ioService->post([]{return PrintNumber(1);});
-    ioService->post([]{return PrintNumber(2);});
-    ioService->post([]{return PrintNumber(3);});
-    ioService->post([]{return PrintNumber(4);});
-    ioService->post([]{return PrintNumber(5);});
+    strand.post([]{return PrintNumber(1);});
+    strand.post([]{return PrintNumber(2);});
+    strand.post([]{return PrintNumber(3);});
+    strand.post([]{return PrintNumber(4);});
+    strand.post([]{return PrintNumber(5);});
 
 
     worker.reset();
