@@ -11,40 +11,23 @@ std::mutex global_stream_lock;
 void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int counter)
 {
     global_stream_lock.lock();
-    std::cout << counter << std::endl;
+    std::cout << "Thread " << counter << std::endl;
     global_stream_lock.unlock();
 
     service->run();
 
     global_stream_lock.lock();
-    std::cout << "End" << std::endl;
+    std::cout << "Thread " <<  counter << std::endl;
     global_stream_lock.unlock();
 }
 
-size_t  fac(size_t n)
+void PrintNumber(int number)
 {
-    if(n <= 1)
-    {
-        return n;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    return n * fac(n - 1);
+    std::cout << "Number :" << number << std::endl;
 }
 
-void CalculateFactorial(size_t n)
-{
-    global_stream_lock.lock();
-    std::cout << "Calculating " << n << "! factorial" << std::endl;
-    global_stream_lock.unlock();
 
-    size_t f = fac(n);
 
-    global_stream_lock.lock();
-    std::cout << n << "! = " << f << std::endl;
-    global_stream_lock.unlock();
-}
 
 int main()
 {
@@ -63,9 +46,14 @@ int main()
         });
     }
 
-    ioService->post([] { return CalculateFactorial(5); });
-    ioService->post([] { return CalculateFactorial(6); });
-    ioService->post([] { return CalculateFactorial(7); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    ioService->post([]{return PrintNumber(1);});
+    ioService->post([]{return PrintNumber(2);});
+    ioService->post([]{return PrintNumber(3);});
+    ioService->post([]{return PrintNumber(4);});
+    ioService->post([]{return PrintNumber(5);});
+
 
     worker.reset();
 
