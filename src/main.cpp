@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
 
 std::mutex global_stream_lock;
 
@@ -29,12 +28,12 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int c
     }
 }
 
-void ThrowAnException(const std::shared_ptr<boost::asio::io_service>& service, int counter)
+void ThrowAnException(const std::shared_ptr<boost::asio::io_service>& service)
 {
     global_stream_lock.lock();
-    std::cout << "Throw Exception : " << counter << std::endl;
     global_stream_lock.unlock();
-    throw(std::runtime_error("The exception!!"));
+    service->post([service]{return ThrowAnException(service);});
+    throw(std::runtime_error("The exception!!!"));
 }
 
 int main()
@@ -49,23 +48,13 @@ int main()
 
     std::vector<std::thread> threads;
 
-    for (int i = 1; i <= 2; i++) {
+    for (int i = 1; i <= 5; i++) {
         threads.emplace_back([ioService, i] {
             return WorkerThread(ioService, i);
         });
     }
 
-    //  We can also see that although we post work for the io_service object five times,
-    //  the exception handling only handle two exceptions because once the thread has finished,
-    //  the join_all() function in the thread will finish the thread and exit the program.
-    //  In other words, we can say that once the exception is handled, the thread exits to join the call.
-    `//  Additional code that might have thrown an exception will never be called.
-
-    ioService->post([ioService] { return ThrowAnException(ioService, 1); });
-    ioService->post([ioService] { return ThrowAnException(ioService, 2); });
-    ioService->post([ioService] { return ThrowAnException(ioService, 3); });
-    ioService->post([ioService] { return ThrowAnException(ioService, 4); });
-    ioService->post([ioService] { return ThrowAnException(ioService, 5); });
+    ioService->post([ioService] { return ThrowAnException(ioService); });
 
     std::for_each(threads.begin(), threads.end(), [](std::thread &thread) {
         thread.join();
