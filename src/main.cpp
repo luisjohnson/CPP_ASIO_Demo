@@ -14,18 +14,18 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service>& service, int c
     std::cout << "Thread " << counter << " Start." << std::endl;
     global_stream_lock.unlock();
 
-    try {
-        service->run();
+    boost::system::error_code ec;
+    service->run(ec);
+    if(ec)
+    {
+        global_stream_lock.lock();
+        std::cout << "Message: " << ec << std::endl;
+        global_stream_lock.unlock();
+    }
+
         global_stream_lock.lock();
         std::cout << "Thread " <<  counter << std::endl;
         global_stream_lock.unlock();
-    }
-    catch(std::exception &exception)
-    {
-        global_stream_lock.lock();
-        std::cout << "Message: " <<  exception.what() << std::endl;
-        global_stream_lock.unlock();
-    }
 }
 
 void ThrowAnException(const std::shared_ptr<boost::asio::io_service>& service)
