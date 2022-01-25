@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 
 std::mutex global_stream_lock;
 
@@ -36,7 +37,8 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service> &service, int c
     global_stream_lock.unlock();
 }
 
-void TimerHandler(const boost::system::error_code &ec) {
+void TimerHandler(const boost::system::error_code &ec,
+                  std::shared_ptr<boost::asio::deadline_timer> timer) {
     if (ec) {
         global_stream_lock.lock();
         std::cout << "Error Message: " << ec << std::endl;
@@ -46,6 +48,10 @@ void TimerHandler(const boost::system::error_code &ec) {
         std::cout << "You see this because you waited 10 seconds." << std::endl;
         std::cout << "Now press ENTER to exit" << std::endl;
         global_stream_lock.unlock();
+        timer->expires_from_now(boost::posix_time::seconds(3));
+        // The _1 parameter is a placeholder argument that will be sustitued
+        // by the first input argument.
+        timer->async_wait(boost::bind(&TimerHandler, _1, timer));
     }
 }
 
@@ -66,9 +72,9 @@ int main() {
         });
     }
 
-    boost::asio::deadline_timer  timer(*ioService);
-    timer.expires_from_now(boost::posix_time::seconds(10));
-    timer.async_wait(TimerHandler);
+    std::shared_ptr<boost::asio::deadline_timer> timer(new boost::asio::deadline_timer(*ioService));
+    timer->expires_from_now(boost::posix_time::seconds(3));
+    timer->async_wait(boost::bind(&TimerHandler, _1, timer));
 
     std::cin.get();
 
