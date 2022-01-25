@@ -5,7 +5,7 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
+#include <boost/lexical_cast.hpp>
 
 std::mutex global_stream_lock;
 
@@ -37,30 +37,6 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service> &service, int c
     global_stream_lock.unlock();
 }
 
-void TimerHandler(const boost::system::error_code &ec,
-                  std::shared_ptr<boost::asio::deadline_timer> timer,
-                  std::shared_ptr<boost::asio::io_service::strand> strand) {
-    if (ec) {
-        global_stream_lock.lock();
-        std::cout << "Error Message: " << ec << std::endl;
-        global_stream_lock.unlock();
-    } else {
-        global_stream_lock.lock();
-        std::cout << "You see this because you waited 10 seconds." << std::endl;
-        std::cout << "Now press ENTER to exit" << std::endl;
-        global_stream_lock.unlock();
-        timer->expires_from_now(boost::posix_time::seconds(3));
-        // The _1 parameter is a placeholder argument that will be substituted
-        // by the first input argument.
-        timer->async_wait(strand->wrap(boost::bind(&TimerHandler, _1, timer, strand)));
-    }
-}
-
-void PrintNumber(int number)
-{
-    std::cout << "Number: " << number << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
- }
 
 int main() {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
@@ -68,27 +44,47 @@ int main() {
     std::shared_ptr<boost::asio::io_service::strand> strand( new boost::asio::io_service::strand(*ioService));
 
     global_stream_lock.lock();
-    std::cout << "Wait 10 seconds to see what happen, otherwise press ENTER to exit" << std::endl;
+    std::cout << "Press ENTER to exit" << std::endl;
     global_stream_lock.unlock();
 
     std::vector<std::thread> threads;
 
-    for (int i = 1; i <= 5; i++) {
+    for (int i = 1; i <= 2; i++) {
         threads.emplace_back([ioService, i] {
             return WorkerThread(ioService, i);
         });
     }
 
-    std::shared_ptr<boost::asio::deadline_timer> timer(new boost::asio::deadline_timer(*ioService));
-    timer->expires_from_now(boost::posix_time::seconds(3));
-    timer->async_wait(boost::bind(&TimerHandler, _1, timer, strand));
+    boost::asio::ip::tcp::socket socket(*ioService);
+
+    try {
+        boost::asio::ip::tcp::resolver resolver(*ioService);
+        boost::asio::ip::tcp::resolver::query query("www.packtpub.com",
+                                                    boost::lexical_cast<std::string>(80));
+        boost::asio::ip::tcp::resolver::iterator iterator = resolver.resolve(query);
+        boost::asio::ip::tcp::endpoint endpoint = *iterator;
+        global_stream_lock.lock();
+        std::cout << "Connecting to: " << endpoint << std::endl;
+        global_stream_lock.unlock();
+        std::cout << "Connected!" << std::endl;
+
+    }
+    catch(std::exception &exception) {
+        global_stream_lock.lock();
+        std::cout << exception.what() << std:: endl;
+        global_stream_lock.unlock();
+    }
 
     std::cin.get();
+    boost::system::error_code ec;
+    socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    socket.close();
 
     ioService->stop();
 
     std::for_each(threads.begin(), threads.end(), [](std::thread &thread) {
         thread.join();
+
     });
     return 0;
 }
