@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 
 std::mutex global_stream_lock;
@@ -37,6 +38,20 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service> &service, int c
     global_stream_lock.unlock();
 }
 
+void onConnect(const boost::system::error_code & ec)
+{
+    if(ec){
+        global_stream_lock.lock();
+        std::cout << "On Connect error: " << ec << std::endl;
+        global_stream_lock.unlock();
+    }
+    else {
+        global_stream_lock.lock();
+        std::cout << "Connected!" << std::endl;
+        global_stream_lock.unlock();
+    }
+}
+
 
 int main() {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
@@ -66,8 +81,7 @@ int main() {
         global_stream_lock.lock();
         std::cout << "Connecting to: " << endpoint << std::endl;
         global_stream_lock.unlock();
-        std::cout << "Connected!" << std::endl;
-
+        socket.async_connect(endpoint, boost::bind(onConnect, _1));
     }
     catch(std::exception &exception) {
         global_stream_lock.lock();
