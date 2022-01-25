@@ -38,7 +38,8 @@ void WorkerThread(const std::shared_ptr<boost::asio::io_service> &service, int c
 }
 
 void TimerHandler(const boost::system::error_code &ec,
-                  std::shared_ptr<boost::asio::deadline_timer> timer) {
+                  std::shared_ptr<boost::asio::deadline_timer> timer,
+                  std::shared_ptr<boost::asio::io_service::strand> strand) {
     if (ec) {
         global_stream_lock.lock();
         std::cout << "Error Message: " << ec << std::endl;
@@ -49,16 +50,22 @@ void TimerHandler(const boost::system::error_code &ec,
         std::cout << "Now press ENTER to exit" << std::endl;
         global_stream_lock.unlock();
         timer->expires_from_now(boost::posix_time::seconds(3));
-        // The _1 parameter is a placeholder argument that will be sustitued
+        // The _1 parameter is a placeholder argument that will be substituted
         // by the first input argument.
-        timer->async_wait(boost::bind(&TimerHandler, _1, timer));
+        timer->async_wait(strand->wrap(boost::bind(&TimerHandler, _1, timer, strand)));
     }
 }
+
+void PrintNumber(int number)
+{
+    std::cout << "Number: " << number << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+ }
 
 int main() {
     std::shared_ptr<boost::asio::io_service> ioService(new boost::asio::io_service);
     std::shared_ptr<boost::asio::io_service::work> worker(new boost::asio::io_service::work(*ioService));
-    boost::asio::io_service::strand strand(*ioService);
+    std::shared_ptr<boost::asio::io_service::strand> strand( new boost::asio::io_service::strand(*ioService));
 
     global_stream_lock.lock();
     std::cout << "Wait 10 seconds to see what happen, otherwise press ENTER to exit" << std::endl;
@@ -74,7 +81,7 @@ int main() {
 
     std::shared_ptr<boost::asio::deadline_timer> timer(new boost::asio::deadline_timer(*ioService));
     timer->expires_from_now(boost::posix_time::seconds(3));
-    timer->async_wait(boost::bind(&TimerHandler, _1, timer));
+    timer->async_wait(boost::bind(&TimerHandler, _1, timer, strand));
 
     std::cin.get();
 
